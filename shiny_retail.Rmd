@@ -1,0 +1,387 @@
+---
+title: "Shiny_Retail"
+author: "Norden"
+date: "2024-10-16"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(DT)
+library(shiny)
+library(shinydashboard)
+
+```
+
+```{r}
+# Define UI for the application
+ui <- dashboardPage(
+  dashboardHeader(title = "Retail Data Visualization"),
+  
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Dataset", tabName = "dataset", icon = icon("database"),
+               menuSubItem("Information", tabName = "dataset_info"),
+               menuSubItem("View Dataset", tabName = "view_dataset"),
+               menuSubItem("Structure", tabName = "dataset_str"),
+               menuSubItem("Summary", tabName = "dataset_summary")),
+      menuItem("Quantity Distribution", tabName = "quantity", icon = icon("bar-chart")),
+      menuItem("Price Distribution", tabName = "price", icon = icon("bar-chart")),
+      menuItem("Total Price Distribution", tabName = "total_price", icon = icon("bar-chart")),
+      menuItem("Top Customers", tabName = "top_customers", icon = icon("user")),
+      menuItem("Top Products by Quantity", tabName = "top_products_quantity", icon = icon("shopping-cart")),
+      menuItem("Top Products by Revenue", tabName = "top_products_revenue", icon = icon("dollar-sign")),
+      menuItem("Sales by Country", tabName = "sales_country", icon = icon("globe")),
+      menuItem("Time Series Analysis (Daily)", tabName = "daily_sales", icon = icon("calendar-day")),
+      menuItem("Time Series Analysis (Monthly)", tabName = "monthly_sales", icon = icon("calendar-alt")),
+      menuItem("Weekly Traffic", tabName = "weekly_traffic", icon = icon("calendar-week"))
+    )
+  ),
+  
+  dashboardBody(
+    tabItems(
+      # Dataset Information tab
+      tabItem(tabName = "dataset_info",
+              h2("Dataset Overview"),
+              p("This dataset contains online retail transactions from a UK-based retail shop from 2010 to 2011. The dataset includes information about invoices, product descriptions, quantities, prices, and customer details."),
+              p("Columns in the dataset include:"),
+              tags$ul(
+                tags$li("InvoiceNo: Invoice number for each transaction."),
+                tags$li("StockCode: Unique code for each product."),
+                tags$li("Description: Description of the product."),
+                tags$li("Quantity: Number of products sold."),
+                tags$li("InvoiceDate: Date and time of the transaction."),
+                tags$li("UnitPrice: Price of each product."),
+                tags$li("CustomerID: Unique ID for each customer."),
+                tags$li("Country: Country of the customer.")
+              )
+      ),
+      
+      # View Dataset tab
+      tabItem(tabName = "view_dataset",
+              h2("Dataset"),
+              dataTableOutput("dataT")
+      ),
+      
+      # Structure of Dataset tab
+      tabItem(tabName = "dataset_str",
+              h2("Structure of Dataset"),
+              verbatimTextOutput("datasetStructure")
+      ),
+      
+      # Summary of Dataset tab
+      tabItem(tabName = "dataset_summary",
+              h2("Summary of Dataset"),
+              verbatimTextOutput("datasetSummary")
+      ),
+      
+      # Tab for Quantity Distribution
+      tabItem(tabName = "quantity",
+              fluidRow(
+                box(plotlyOutput("quantityPlot"), width = 12),
+                box(textOutput("quantityInterpretation"), width = 12)
+              )
+      ),
+      
+      # Tab for Price Distribution
+      tabItem(tabName = "price",
+              fluidRow(
+                box(plotlyOutput("pricePlot"), width = 12),
+                box(textOutput("priceInterpretation"), width = 12)
+              )
+      ),
+      
+      # Tab for Total Price Distribution
+      tabItem(tabName = "total_price",
+              fluidRow(
+                box(plotlyOutput("totalPricePlot"), width = 12),
+                box(textOutput("totalPriceInterpretation"), width = 12)
+              )
+      ),
+      
+      # Tab for Top Customers
+      tabItem(tabName = "top_customers",
+              fluidRow(
+                box(plotlyOutput("topCustomersPlot"), width = 12),
+                box(textOutput("topCustomersInterpretation"), width = 12)
+              )
+      ),
+      
+      # Tab for Top Products by Quantity
+      tabItem(tabName = "top_products_quantity",
+              fluidRow(
+                box(plotlyOutput("topProductsQuantityPlot"), width = 12),
+                box(textOutput("topProductsQuantityInterpretation"), width = 12)
+              )
+      ),
+      
+      # Tab for Top Products by Revenue
+      tabItem(tabName = "top_products_revenue",
+              fluidRow(
+                box(plotlyOutput("topProductsRevenuePlot"), width = 12),
+                box(textOutput("topProductsRevenueInterpretation"), width = 12)
+              )
+      ),
+      
+      # Tab for Sales by Country
+      tabItem(tabName = "sales_country",
+              fluidRow(
+                box(plotlyOutput("salesCountryPlot"), width = 12),
+                box(textOutput("salesCountryInterpretation"), width = 12)
+              )
+      ),
+      
+      # Tab for Daily Sales Analysis
+      tabItem(tabName = "daily_sales",
+              fluidRow(
+                box(plotlyOutput("dailySalesPlot"), width = 12),
+                box(textOutput("dailySalesInterpretation"), width = 12)
+              )
+      ),
+      
+      # Tab for Monthly Sales Analysis
+      tabItem(tabName = "monthly_sales",
+              fluidRow(
+                box(plotlyOutput("monthlySalesPlot"), width = 12),
+                box(textOutput("monthlySalesInterpretation"), width = 12)
+              )
+      ),
+      
+      # Tab for Weekly Traffic
+      tabItem(tabName = "weekly_traffic",
+              fluidRow(
+                box(plotlyOutput("trafficByDayPlot"), width = 12),
+                box(textOutput("weeklyTrafficInterpretation"), width = 12)
+              )
+      )
+    )
+  )
+)
+
+```
+
+
+
+
+```{r}
+# Define server logic
+server <- function(input, output) {
+
+  # Data table output for viewing the dataset
+  output$dataT <- renderDataTable({
+    datatable(visualize_df, options = list(pageLength = 10))
+  })
+  
+  # Structure of the dataset
+  output$datasetStructure <- renderPrint({
+    str(visualize_df)
+  })
+  
+  # Summary of the dataset
+  output$datasetSummary <- renderPrint({
+    summary(visualize_df)
+  })
+  
+  # Sample of the dataset
+  output$datasetSample <- renderPrint({
+    sample_n(visualize_df, 10)
+  })
+  
+  # Quantity distribution plot and interpretation
+  output$quantityPlot <- renderPlotly({
+    gg <- ggplot(visualize_df, aes(x = log(Quantity + 1))) +
+      geom_histogram(bins = 50, fill = "blue", color = "white") +
+      labs(title = "Distribution of Quantity", x = "Quantity", y = "Frequency")
+    ggplotly(gg)
+  })
+  
+  output$quantityInterpretation <- renderText({
+    "This histogram shows the distribution of product quantities sold. By using a logarithmic scale, we can better understand the distribution even when there are large outliers in the quantity sold. The data appears skewed, with most quantities being small, but a few large orders.
+   ### Observation: The histogram shows the distribution of product quantities sold. Most products are sold in small quantities, with a few having significantly higher quantities.  
+   ### Interpretation: The retail store sells many products in smaller quantities, but there are a few bulk orders that contribute to higher quantities."
+  })
+
+  # Price distribution plot and interpretation
+  output$pricePlot <- renderPlotly({
+    gg <- ggplot(visualize_df, aes(x = log(Price + 1))) +
+      geom_histogram(bins = 50, fill = "green", color = "white") +
+      labs(title = "Distribution of Prices", x = "Price", y = "Frequency")
+    ggplotly(gg)
+  })
+  
+  output$priceInterpretation <- renderText({
+    "This plot shows the distribution of product prices. The logarithmic scale helps account for the wide range of prices. The majority of products have relatively low prices, while only a few have higher prices, resulting in a skewed distribution.
+    ### Observation: The distribution of prices shows that most products are priced on the lower end, with a few products having higher prices.
+   ### Interpretation: The store mostly sells inexpensive items, but there are some higher-priced items that contribute to revenue."
+  })
+  
+  # Total Price distribution plot and interpretation
+  output$totalPricePlot <- renderPlotly({
+    gg <- ggplot(visualize_df, aes(x = log(TotalPrice + 1))) +
+      geom_histogram(bins = 50, fill = "purple", color = "white") +
+      labs(title = "Distribution of Total Price", x = "Total Price", y = "Frequency")
+    ggplotly(gg)
+  })
+  
+  output$totalPriceInterpretation <- renderText({
+    "The total price distribution graph shows the total sales value per transaction. Most transactions have a relatively low total value, but there are some high-value transactions as well, resulting in a skewed distribution.
+    ### Observation: The total price distribution graph shows that most transactions have low total values, but there are a few high-value transactions.
+   ### Interpretation: This indicates that many transactions are small purchases, but the few high-value transactions are important contributors to total revenue."
+  })
+  
+  # Top customers plot and interpretation
+  output$topCustomersPlot <- renderPlotly({
+    top_customers <- visualize_df %>%
+      group_by(Customer.ID) %>%
+      summarise(TotalSpent = sum(TotalPrice)) %>%
+      arrange(desc(TotalSpent)) %>%
+      head(10)
+    
+    gg <- ggplot(top_customers, aes(x = reorder(Customer.ID, TotalSpent), y = TotalSpent)) +
+      geom_bar(stat = "identity", fill = "blue") +
+      coord_flip() +
+      labs(title = "Top 10 Customers by Total Spending", x = "Customer ID", y = "Total Spending")
+    ggplotly(gg)
+  })
+  
+  output$topCustomersInterpretation <- renderText({
+    "This bar chart shows the top 10 customers by total spending. These customers account for a significant proportion of total sales, indicating the presence of highly valuable customers. It highlights the importance of customer segmentation for targeted marketing efforts.
+    ### Observation: A small number of customers contribute a significant portion of the total sales.
+   ### Interpretation: The top customers are valuable to the store's overall sales, and targeted marketing to retain and grow this group could be beneficial."
+  })
+  
+  # Top products by quantity plot and interpretation
+  output$topProductsQuantityPlot <- renderPlotly({
+    top_products_quantity <- visualize_df %>%
+      group_by(StockCode, Description) %>%
+      summarise(TotalQuantity = sum(Quantity), .groups = "drop") %>%
+      arrange(desc(TotalQuantity)) %>%
+      head(10)
+    
+    gg <- ggplot(top_products_quantity, aes(x = reorder(Description, TotalQuantity), y = TotalQuantity)) +
+      geom_bar(stat = "identity", fill = "yellow") +
+      coord_flip() +
+      labs(title = "Top 10 Products by Quantity Sold", x = "Product Description", y = "Total Quantity Sold")
+    ggplotly(gg)
+  })
+  
+  output$topProductsQuantityInterpretation <- renderText({
+    "This bar chart shows the top 10 products by quantity sold. These products are popular among customers, contributing the most to the total sales volume. Businesses can use this information to optimize inventory management and promotions.
+    ### Observation: A few products make up the majority of the total quantity sold.
+   ### Interpretation: These are high-demand products, and maintaining sufficient inventory and promoting them further could boost sales."
+  })
+  
+  # Top products by revenue plot and interpretation
+  output$topProductsRevenuePlot <- renderPlotly({
+    top_products_revenue <- visualize_df %>%
+      group_by(StockCode, Description) %>%
+      summarise(TotalRevenue = sum(TotalPrice), .groups = "drop") %>%
+      arrange(desc(TotalRevenue)) %>%
+      head(10)
+    
+    gg <- ggplot(top_products_revenue, aes(x = reorder(Description, TotalRevenue), y = TotalRevenue)) +
+      geom_bar(stat = "identity", fill = "purple") +
+      coord_flip() +
+      labs(title = "Top 10 Products by Total Revenue", x = "Product Description", y = "Total Revenue")
+    ggplotly(gg)
+  })
+  
+  output$topProductsRevenueInterpretation <- renderText({
+    "This chart shows the top 10 products by total revenue. These products generate the highest sales value, making them key drivers of profitability. Understanding which products generate the most revenue helps in planning and marketing.
+    ### Observation: A few products generate most of the revenue.
+   ### Interpretation: These high-revenue products are crucial to profitability, and special promotions or enhanced marketing for these products could help increase total revenue."
+  })
+  
+  # Sales by country plot and interpretation
+  output$salesCountryPlot <- renderPlotly({
+    sales_by_country <- visualize_df %>%
+      group_by(Country) %>%
+      summarise(TotalSales = sum(TotalPrice)) %>%
+      arrange(desc(TotalSales)) %>%
+      head(10)
+    
+    gg <- ggplot(sales_by_country, aes(x = reorder(Country, TotalSales), y = TotalSales)) +
+      geom_bar(stat = "identity", fill = "red") +
+      coord_flip() +
+      labs(title = "Top 10 Countries by Total Sales", x = "Country", y = "Total Sales")
+    ggplotly(gg)
+  })
+  
+  output$salesCountryInterpretation <- renderText({
+    "This chart shows the top 10 countries by total sales. The highest sales come from specific countries, indicating strong market presence in those areas. This data is useful for understanding geographical sales distribution and potential market expansion.
+    ### Observation: Most sales come from a few countries, with the top 10 contributing the most.
+   ### Interpretation: These countries are key markets for the store, and expanding into new geographical areas could help grow total sales."
+  })
+  
+  # Daily sales plot and interpretation
+  output$dailySalesPlot <- renderPlotly({
+    daily_sales <- visualize_df %>%
+      group_by(DateOnly) %>%
+      summarise(TotalSales = sum(TotalPrice))
+    
+    gg <- ggplot(daily_sales, aes(x = DateOnly, y = TotalSales)) +
+      geom_line(color = "green", linewidth = 0.5) +
+      labs(title = "Total Sales Over Time (Daily)", x = "Date", y = "Total Sales (Revenue)")
+    ggplotly(gg)
+  })
+  
+  output$dailySalesInterpretation <- renderText({
+    "This line chart shows daily sales over time. Peaks in the graph represent days with high sales volume, which could be related to specific promotions or events. Identifying trends in daily sales helps businesses make better operational and marketing decisions.
+    ### Observation: The daily sales line chart shows noticeable peaks, likely indicating periods of high sales due to promotions or events.
+   ### Interpretation: Identifying these peaks can help the business plan future promotions to take advantage of high sales periods."
+  })
+  
+  # Monthly sales plot and interpretation
+  output$monthlySalesPlot <- renderPlotly({
+    visualize_df$Month <- format(visualize_df$InvoiceDate, "%Y-%m")
+    monthly_sales <- visualize_df %>%
+      group_by(Month) %>%
+      summarise(TotalSales = sum(TotalPrice))
+    
+    gg <- ggplot(monthly_sales, aes(x = as.Date(paste0(Month, "-01")), y = TotalSales)) +
+      geom_line(color = "green", size = 0.5) +
+      labs(title = "Total Sales Over Time (Monthly)", x = "Month", y = "Total Sales (Revenue)")
+    ggplotly(gg)
+  })
+  
+  output$monthlySalesInterpretation <- renderText({
+    "This line chart shows monthly sales trends over time. It helps in identifying seasonal sales patterns and long-term growth trends, allowing businesses to plan ahead for peak sales periods or address slow months.
+    ### Observation: Monthly sales show patterns of growth, and possible seasonal peaks can be identified.
+   ### Interpretation: These trends help the business plan for demand surges and adjust operations accordingly."
+  })
+  
+  # Weekly traffic plot and interpretation
+  output$trafficByDayPlot <- renderPlotly({
+    visualize_df$DayOfWeek <- weekdays(visualize_df$DateOnly)
+    weekly_traffic <- visualize_df %>%
+      group_by(DayOfWeek) %>%
+      summarise(TotalTraffic = sum(Quantity))
+    
+    gg <- ggplot(weekly_traffic, aes(x = DayOfWeek, y = TotalTraffic, fill = DayOfWeek)) +
+      geom_bar(stat = "identity") +
+      labs(title = "Total Traffic by Day of the Week", x = "Day of the Week", y = "Total Traffic")
+    ggplotly(gg)
+  })
+  
+  output$weeklyTrafficInterpretation <- renderText({
+    "This chart shows traffic (product quantity sold) by day of the week. The data reveals the busiest days for sales and helps retailers optimize staffing, inventory, and marketing for peak periods.
+    ### Observation: Certain days of the week have more traffic than others, indicating higher sales.
+   ### Interpretation: This information is useful for scheduling staff and planning marketing campaigns to take advantage of peak days."
+  })
+}
+
+# Run the application
+shinyApp(ui = ui, server = server)
+
+```
+

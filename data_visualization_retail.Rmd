@@ -1,0 +1,413 @@
+---
+title: "data visualization for retail"
+output: html_notebook
+---
+```{r}
+library(dplyr)
+library(ggplot2)
+library(plotly)
+```
+
+```{r}
+data_file <- read.csv("cleaned_online_retail.csv")
+```
+
+```{r}
+sample(data_file)
+```
+
+```{r}
+str(data_file)
+```
+```{r}
+# Convert relevant columns to factors
+data_file$Country <- as.factor(data_file$Country)
+data_file$StockCode <- as.factor(data_file$StockCode)
+
+# Converting integer to numeric
+data_file$Quantity <- as.numeric(data_file$Quantity)
+```
+
+```{r}
+names(data_file)
+```
+
+```{r}
+# removing the unnecessary columns from the cleaned dataset
+visualize_df <- data_file %>% 
+  select(Invoice, StockCode, Description, Quantity, InvoiceDate, Price, TotalPrice, Customer.ID, Country)
+```
+
+```{r}
+visualize_df <- write.csv(visualize_df, "visualize_df.csv", row.names = FALSE)
+```
+```{r}
+visualize_df <- read.csv("visualize_df.csv")
+```
+
+```{r}
+head(visualize_df)
+```
+```{r}
+summary(visualize_df)
+```
+
+
+### DATA VISUALIZATION: ###
+
+```{r}
+# Visualizing the distribution of Quantity
+vis_quantity <- ggplot(visualize_df, aes(log(Quantity+1))) +
+  geom_histogram(bins = 50, fill = "blue", color = "white") +
+  labs(title = "Distribution of Quantity Sold", x = "Quantity", y = "Density")
+ggplotly(vis_quantity)
+```
+# Observation: The histogram shows a skewed distribution, indicating that most products are sold in small quantities, with a few products having significantly higher quantities.
+# Interpretation: The majority of items in the store are sold in small volumes, which might be typical for a wide-ranging product catalog. However, there are occasional bulk purchases, reflected in the long tail of the distribution.
+
+```{r}
+# Visualizing the distribution of Price
+vis_price <- ggplot(visualize_df, aes(log(Price+1))) +
+  geom_histogram(bins = 50, fill = "blue", color = "white") +
+  labs(title = "Distribution of Product Prices", x = "Price", y = "Frequency")
+ggplotly(vis_price)
+```
+# Observation: The distribution of product prices reveals that most items are priced lower, with few high-priced products.
+# Interpretation: The store mainly sells low-priced items, and higher-priced items are outliers, making up a small portion of the total products offered.
+
+```{r}
+# Visualizing the distribution of TotalPrice (Revenue)
+vis_total_price <- ggplot(visualize_df, aes(x = log(TotalPrice+1))) +
+  geom_histogram(bins = 50, fill = "blue", color = "white") +
+  labs(title = "Distribution of Total Transaction Values (TotalPrice)", x = "TotalPrice", y = "Frequency") + 
+  theme_classic()
+ggplotly(vis_total_price)
+```
+# Observation: Most transactions fall in the lower range of total price, with only a few transactions generating higher total revenue.
+# Interpretation: Similar to individual product prices, total transaction amounts are concentrated around lower values, reflecting frequent small purchases and occasional larger sales.
+
+```{r}
+# Density plot for Quantity
+vis_qunatity_dens <- ggplot(visualize_df, aes(log(Quantity)+1)) +
+  geom_density(fill = "blue", alpha = 0.5) +
+  labs(title = "Density Plot of Quantity Sold", x = "Quantity", y = "Density")
+ggplotly(vis_qunatity_dens)
+```
+# Observation: The density plot highlights the peak at lower quantities sold.
+# Interpretation: The majority of sales involve fewer units, suggesting a high frequency of single or small quantity purchases.
+
+```{r}
+# Density plot for Price
+vis_price_dens <- ggplot(visualize_df, aes(log(Price+1))) +
+  geom_density(fill = "blue", alpha = 0.5) +
+  labs(title = "Density Plot of Product Prices", x = "Price", y = "Density")
+ggplotly(vis_price_dens)
+```
+# Observation: The majority of products are priced in the lower range, with a smooth decline toward higher-priced products.
+# Interpretation: Most items are inexpensive, reflecting a retail strategy focused on affordability, with a few higher-priced items possibly driving luxury or special purchases.
+
+```{r}
+# Density plot for TotalPrice
+vis_total_price_dens <- ggplot(visualize_df, aes(log(TotalPrice)+1)) +
+  geom_density(fill = "blue", alpha = 0.5) +
+  labs(title = "Density Plot of Total Transaction Values (TotalPrice)", x = "TotalPrice", y = "Density")
+
+ggplotly(vis_total_price_dens)
+```
+# Observation: The density plot for total transaction values shows that most transactions involve lower revenue.
+# Interpretation: Customers tend to make smaller purchases more frequently, contributing to the overall sales pattern of the store.
+
+
+### CUSTOMER ANALYSIS ###
+  
+```{r}
+# Top 10 customers by total spending
+top_customers <- visualize_df %>%
+  group_by(Customer.ID) %>%
+  summarise(TotalSpent = sum(TotalPrice)) %>%
+  arrange(desc(TotalSpent)) %>%
+  head(10)
+  
+# Plot Top 10 Customers by Total Spending
+vis_top_custmers <- ggplot(top_customers, aes(x = reorder(Customer.ID, TotalSpent), y = TotalSpent)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  coord_flip() +
+  labs(title = "Top 10 Customers by Total Spending", x = "Customer ID", y = "Total Spending") + 
+  theme_classic()
+
+# Convert to interactive plot using ggplotly
+ggplotly(vis_top_custmers)
+
+```
+# Observation: The top 10 customers contribute a significant portion of the total revenue.
+# Interpretation: A small number of high-value customers are responsible for a large share of sales, which could indicate the importance of customer retention and loyalty programs.
+
+
+### PRODUCT ANALYSIS ###
+```{r}
+# Top 10 products by quantity sold
+top_products_quantity <- visualize_df %>%
+  group_by(StockCode, Description) %>%
+  summarise(TotalQuantity = sum(Quantity), .groups = "drop") %>%
+  arrange(desc(TotalQuantity)) %>%
+  head(10)
+
+# Plot Top 10 Products by Quantity Sold
+vis_top_products_quantity <- ggplot(top_products_quantity, aes(x = reorder(Description, TotalQuantity), y = TotalQuantity)) +
+  geom_bar(stat = "identity", fill = "yellow") +
+  coord_flip() +
+  labs(title = "Top 10 Products by Quantity Sold", x = "Product Description", y = "Total Quantity Sold") +
+  theme_classic()
+
+# Convert to interactive plot using ggplotly
+ggplotly(vis_top_products_quantity)
+```
+# Observation: A small set of products make up a large proportion of the total quantity sold.
+# Interpretation: These products are likely popular or frequently purchased in bulk, indicating their importance in driving sales volume for the store.
+
+```{r}
+# Top 10 products by total revenue (TotalPrice)
+top_products_revenue <- visualize_df %>%
+  group_by(StockCode, Description) %>%
+  summarise(TotalRevenue = sum(TotalPrice), .groups = "drop") %>%
+  arrange(desc(TotalRevenue)) %>%
+  head(10)
+
+# Plot Top 10 Products by Total Revenue
+vis_top_product_revenue <- ggplot(top_products_revenue, aes(x = reorder(Description, TotalRevenue), y = TotalRevenue)) +
+  geom_bar(stat = "identity", fill = "purple") +
+  coord_flip() +
+  labs(title = "Top 10 Products by Revenue", x = "Product Description", y = "Total Revenue") +
+  theme_classic()
+
+# Convert to interactive plot using ggplotly
+ggplotly(vis_top_product_revenue)
+```
+# Observation: A few products contribute disproportionately to the total revenue.
+# Interpretation: These high-revenue items are the store's key drivers of profitability and could be a focus for marketing or promotions to increase sales.
+
+```{r}
+# Total sales by country
+sales_by_country <- visualize_df %>%
+  group_by(Country) %>%
+  summarise(TotalSales = sum(TotalPrice))
+
+# Top 10 countries by total sales
+top_countries <- sales_by_country %>%
+  arrange(desc(TotalSales)) %>%
+  head(10)
+
+# Plot Top 10 Countries by Total Sales
+top_countries <- ggplot(top_countries, aes(x = reorder(Country, TotalSales), y = TotalSales)) +
+  geom_bar(stat = "identity", fill = "red") +
+  coord_flip() +
+  labs(title = "Top 10 Countries by Total Sales", x = "Country", y = "Total Sales") +
+  theme_classic()
+
+# Convert to interactive plot using ggplotly
+ggplotly(top_countries)
+
+```
+# Observation: The majority of sales are concentrated in a small number of countries.
+# Interpretation: The store likely operates in key markets where it has established strong customer bases, but may have opportunities to expand sales in underrepresented regions.
+
+
+
+### TIME SERIES ANALYSIS 
+
+```{r}
+# Convert InvoiceDate from character to POSIXct format
+visualize_df$InvoiceDate <- as.POSIXct(visualize_df$InvoiceDate, format = "%Y-%m-%d %H:%M:%S")
+
+# Extract just the date (without time) for daily aggregation
+visualize_df$DateOnly <- as.Date(visualize_df$InvoiceDate)
+
+# Aggregate the data by day to calculate total sales per day
+daily_sales <- visualize_df %>%
+  group_by(DateOnly) %>%
+  summarise(TotalSales = sum(TotalPrice))
+
+# Take a look at the first few rows
+head(daily_sales)
+```
+```{r}
+# Create a line plot of total sales over time (daily)
+vis_date_daily <- ggplot(daily_sales, aes(x = DateOnly, y = TotalSales)) +
+  geom_line(color = "green", linewidth = 0.5) +
+  labs(title = "Total Sales Over Time (Daily)", x = "Date", y = "Total Sales (Revenue)") +
+  theme_classic()
+
+# Convert to an interactive plot using ggplotly
+ggplotly(vis_date_daily)
+
+```
+# Observation: The plot shows fluctuations in daily sales, with noticeable peaks during certain periods.
+# Interpretation: Sales may be influenced by factors such as promotions, holidays, or seasonal trends, with peaks potentially corresponding to high-demand periods.
+
+```{r}
+# Aggregate the data by month to calculate total sales per month
+monthly_sales <- visualize_df %>%
+  mutate(Month = format(InvoiceDate, "%Y-%m")) %>%
+  group_by(Month) %>%
+  summarise(TotalSales = sum(TotalPrice))
+
+# Convert 'Month' into a date by appending '-01' to each value
+monthly_sales$Month <- as.Date(paste0(monthly_sales$Month, "-01"))
+```
+```{r}
+# Create a line plot of total sales over time (monthly)
+vis_date_monthly <- ggplot(monthly_sales, aes(x = Month, y = TotalSales)) +
+  geom_line(color = "green", size = 0.5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +  # Rotate x-axis labels
+  labs(title = "Total Sales Over Time (Monthly)", x = "Month", y = "Total Sales (Revenue)") +
+  theme_linedraw()
+
+# Convert to an interactive plot using ggplotly
+ggplotly(vis_date_monthly)
+
+```
+# Observation: The monthly sales plot smooths out the daily fluctuations, showing broader trends and potential seasonality in the data.
+# Interpretation: The data indicates periods of steady growth and possible seasonal spikes, useful for forecasting future sales and managing inventory.
+
+```{r}
+# Create a line plot of total sales over time (daily)
+vis_date_daily_sm <- ggplot(daily_sales, aes(x = DateOnly, y = TotalSales)) +
+  geom_line(color = "green", size = 0.5) +
+  geom_smooth(method = "loess", color = "darkgreen", size = 0.3) +
+  labs(title = "Total Sales Over Time (Daily)", x = "Date", y = "Total Sales (Revenue)") +
+  theme_classic()
+
+# Convert to an interactive plot using ggplotly
+ggplotly(vis_date_daily_sm)
+```
+# Observation: The line plot with the smoothing line shows fluctuations in daily sales, with some distinct peaks.
+# Interpretation: The peaks likely correspond to high sales days, possibly driven by promotional events or holidays. The smooth line provides an overall trend, showing growth or decline patterns in sales over time.
+
+```{r}
+# Extract the day of the week (e.g., Sunday, Monday)
+visualize_df$DayOfWeek <- weekdays(visualize_df$DateOnly)
+
+# Aggregate data by day of the week to calculate total traffic (quantity sold)
+weekly_traffic <- visualize_df %>%
+  group_by(DayOfWeek) %>%
+  summarise(TotalTraffic = sum(Quantity))
+
+# Ensure the days of the week are in the correct order
+days_order <- c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+weekly_traffic$DayOfWeek <- factor(weekly_traffic$DayOfWeek, levels = days_order)
+
+# Print the aggregated weekly traffic data
+print(weekly_traffic)
+```
+
+```{r}
+# Create a bar plot to visualize traffic by day of the week
+traffic_by_day_plot <- ggplot(weekly_traffic, aes(x = DayOfWeek, y = TotalTraffic, fill = DayOfWeek)) +
+  geom_bar(stat = "identity") +  # Bar plot
+  labs(title = "Total Traffic (Quantity Sold) by Day of the Week", x = "Day of the Week", y = "Total Traffic (Quantity Sold)") +
+  theme_classic() +
+  theme(legend.position = "none")
+
+# Convert to an interactive plot using ggplotly
+ggplotly(traffic_by_day_plot)
+
+```
+# Observation: Sales traffic peaks on certain days of the week, with noticeably higher activity.
+# Interpretation: Customer behavior shows that specific days drive more sales, which can help in optimizing staffing, promotions, and operations for those high-traffic days.
+
+```{r}
+# Extract the hour of the day from the InvoiceDate
+visualize_df$Hour <- format(visualize_df$InvoiceDate, "%H")
+
+# Aggregate data by hour of the day to calculate total sales
+hourly_sales <- visualize_df %>%
+  group_by(Hour) %>%
+  summarise(TotalSales = sum(TotalPrice))
+
+# Plot total sales by hour
+vis_sales_by_hour <- ggplot(hourly_sales, aes(x = Hour, y = TotalSales)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Total Sales by Hour of Day", x = "Hour", y = "Total Sales (Revenue)") +
+  theme_classic()
+
+# Convert to an interactive plot using ggplotly
+ggplotly(vis_sales_by_hour)
+
+```
+# Observation: Sales activity varies throughout the day, with peaks at certain hours.
+# Interpretation: This analysis is crucial for understanding peak shopping times, allowing the store to optimize resources, advertising, and customer service during the busiest periods.
+```{r}
+# Aggregate sales by date and country
+sales_by_country_over_time <- visualize_df %>%
+  group_by(DateOnly, Country) %>%
+  summarise(TotalSales = sum(TotalPrice), .groups = "drop")
+
+# Filter to top 5 countries for better comparison
+top_5_countries <- visualize_df %>%
+  group_by(Country) %>%
+  summarise(TotalSales = sum(TotalPrice)) %>%
+  arrange(desc(TotalSales)) %>%
+  head(5)
+
+# Filter data for the top 5 countries
+sales_top_5_countries <- sales_by_country_over_time %>%
+  filter(Country %in% top_5_countries$Country)
+
+# Plot sales trends by country over time
+vis_sales_by_country_time <- ggplot(sales_top_5_countries, aes(x = DateOnly, y = TotalSales, color = Country)) +
+  geom_line() +
+  labs(title = "Sales Trends Over Time by Country", x = "Date", y = "Total Sales (Revenue)") +
+  theme_minimal()
+
+# Convert to interactive plot using ggplotly
+ggplotly(vis_sales_by_country_time)
+
+```
+# Observation: Sales trends vary across the top 5 countries, with certain periods showing synchronized peaks across multiple countries.
+# Interpretation: This analysis reveals global sales trends and highlights the most active markets during specific periods. Insights can be used to identify country-specific demand cycles and adjust inventory or marketing efforts accordingly.
+
+```{r}
+# Categorize customers based on total spending
+customer_segments <- visualize_df %>%
+  group_by(Customer.ID) %>%
+  summarise(TotalSpent = sum(TotalPrice)) %>%
+  mutate(Segment = case_when(
+    TotalSpent < 100 ~ "Low Spenders",
+    TotalSpent >= 100 & TotalSpent < 500 ~ "Medium Spenders",
+    TotalSpent >= 500 ~ "High Spenders"
+  ))
+
+# Visualize the number of customers in each segment
+vis_customer_segments <- ggplot(customer_segments, aes(x = Segment, fill = Segment)) +
+  geom_bar() +
+  labs(title = "Customer Segments Based on Total Spending", x = "Segment", y = "Number of Customers") +
+  theme_classic()
+
+# Convert to an interactive plot using ggplotly
+ggplotly(vis_customer_segments)
+
+```
+# Observation: The majority of customers are low spenders, with fewer medium and high spenders.
+# Interpretation: The store has a broad customer base, but most of the revenue is likely coming from a small number of high-spending customers. Retaining high spenders and converting more low spenders to medium or high spenders should be a priority.
+
+```{r}
+# Count the number of orders per product (instead of total quantity sold)
+top_products_orders <- visualize_df %>%
+  group_by(StockCode, Description) %>%
+  summarise(OrderCount = n(), .groups = "drop") %>%
+  arrange(desc(OrderCount)) %>%
+  head(10)
+
+# Plot top products based on number of orders
+vis_top_products_orders <- ggplot(top_products_orders, aes(x = reorder(Description, OrderCount), y = OrderCount)) +
+  geom_bar(stat = "identity", fill = "orange") +
+  coord_flip() +
+  labs(title = "Top Products Based on Number of Orders", x = "Product Description", y = "Number of Orders") +
+  theme_classic()
+
+# Convert to an interactive plot using ggplotly
+ggplotly(vis_top_products_orders)
+
+```
+# Observation: A few products are ordered much more frequently than others.
+# Interpretation: These products are popular with customers and likely represent essential or fast-selling items. The store may benefit from stocking these items in larger quantities and promoting them more to maintain and grow sales.

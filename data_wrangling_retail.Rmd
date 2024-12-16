@@ -1,0 +1,234 @@
+---
+title: "Data wrangling for online retail shop"
+output: html_notebook
+---
+
+# loading readxl library so that the program can read the dataset which is in xlsx extension 
+```{r}
+library(readxl)
+```
+```{r}
+library(dplyr)
+```
+# for data visualization while cleaning the data
+```{r}
+library(ggplot2)
+```
+
+
+
+
+# since the dataset is in .xlsx extension so loading the data set in xlsx form
+```{r}
+data_file <- read_xlsx("online_retail_II.xlsx")
+```
+# saving the dataset in csv format so that data manipulation can be done to the data.
+```{r}
+write.csv(data_file, "online_retail.csv", row.names = FALSE)
+```
+# reading the saved data set and storing it in the data_file variable
+```{r}
+data_file <- read.csv("online_retail.csv")
+```
+# heading into to the data and looking at the frist few data
+```{r}
+head(data_file)
+```
+# Displaying the basic information about the dataset
+```{r}
+str(data_file)
+```
+
+```{r}
+# Checking for missing values in the data frame
+missing_value <- is.na(data_file)
+
+# Locating the position of the missing value
+missing_position <- which(missing_value, arr.ind = TRUE)
+
+rows_with_missing_value <- unique(missing_position[,1])
+print(data_file[rows_with_missing_value, ])
+```
+
+```{r}
+# Total rows of the dataset
+paste("total rows of the dataset: ", nrow(data_file))
+
+# total no. of missing values in the dataset
+paste("No of rows with missing value: ", sum(is.na(data_file)))
+```
+# removing the null values from the dataset and storing the non-null valued dataset in the new_data_file variable (data frame).
+```{r}
+new_data_file <- na.omit(data_file)
+```
+
+```{r}
+paste("total dataset with non-missing value: ",nrow(new_data_file ))
+paste("No of missing data after omiting the nan variables: ",
+sum(is.na(new_data_file)))
+```
+# looking at the summary of the logical object created in the new_data_set, and taking the summary of the null/nan variables.
+```{r}
+summary(is.na(new_data_file))
+```
+```{r}
+# Checking if the dataset contains any duplicte vectors/values
+paste("total no. of rows in the dataset: ",nrow(new_data_file ))
+paste("No of duplicate values in the dataset: ", sum(duplicated(new_data_file)))
+```
+```{r}
+# removing duplicate rows
+new_data_file <- new_data_file %>% distinct()
+```
+
+```{r}
+paste("total no. of rows in the dataset: ",nrow(new_data_file ))
+paste("No of duplicate values in the dataset: ", sum(duplicated(new_data_file)))
+```
+# taking a look at the matrices of the new_data_file, to determine the data type of the columns in the dataset.
+```{r}
+matrix(new_data_file)
+```
+
+```{r}
+# Parsing the InvoiceDate column into a proper date-time format
+data_file$InvoiceDate <- as.POSIXct(data_file$InvoiceDate, format="%Y-%m-%d %H:%M:%S")
+```
+
+```{r}
+# Removing leading/trailing whitespace from product descriptions
+data_file_clean$Description <- trimws(data_file_clean$Description)
+
+# Converting all descriptions to lowercase for consistency
+data_file_clean$Description <- tolower(data_file_clean$Description)
+
+```
+
+```{r}
+# Adding TotalPrice as a new column (Quantity * Price)
+data_file$TotalPrice <- data_file$Quantity * data_file$Price
+```
+
+```{r}
+# Z-score calculation for Price to detect outliers
+data_file$z_score <- scale(data_file$Price)
+```
+
+```{r}
+# Visualizing the Price distribution before outlier handling
+ggplot(data_file, aes(x = factor(0), y = Price)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  labs(title = "Box Plot of Prices Before Outlier Handling", x = "Price", y = "Value")
+```
+
+```{r}
+# Detecting outliers based on z-scores > 3 or < -3
+outliers <- data_file %>% filter(abs(z_score) > 3)
+print(paste("Number of outliers detected: ", nrow(outliers)))
+```
+```{r}
+# Removing outliers
+data_file_clean <- data_file %>% filter(abs(z_score) <= 3)
+print(paste("Total rows after removing outliers: ", nrow(data_file_clean)))
+
+```
+```{r}
+# Visualizing the Price distribution after outlier removal
+ggplot(data_file_clean, aes(x = factor(0), y = Price)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  labs(title = "Box Plot of Prices After Outlier Removal", x = "Price", y = "Value")
+
+```
+# Since, Negative values in Quantity or Price might represent returns, refunds, or errors. Filtering the negative values for Quantity and Price as we are not analyzing return or cancellation for this data analysis.
+# more focused on sales analysis.
+```{r}
+# Checking for negative quantities (indicating returns or potential errors)
+negative_quantities <- data_file_clean %>% filter(Quantity < 0)
+print(paste("Number of transactions with negative quantities: ", nrow(negative_quantities)))
+
+# Removing the negative quantities
+data_file_clean <- data_file_clean %>% filter(Quantity >= 0)
+```
+
+```{r}
+# Recalculating the TotalPrice to ensure it's consistent
+data_file_clean$TotalPrice <- data_file_clean$Quantity * data_file_clean$Price
+```
+```{r}
+# Z-score calculation for Quantity and TotalPrice
+data_file_clean$z_score_quantity <- scale(data_file_clean$Quantity)
+data_file_clean$z_score_total_price <- scale(data_file_clean$TotalPrice)
+```
+```{r}
+# Visualizing outliers in Quantity
+ggplot(data_file_clean, aes(x = factor(0), y = Quantity)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  labs(title = "Box Plot of Quantity (Before Outlier Handling)", x = "Quantity", y = "Value")
+```
+```{r}
+# Visualizing outliers in TotalPrice
+ggplot(data_file_clean, aes(x = factor(0), y = TotalPrice)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  labs(title = "Box Plot of TotalPrice (Before Outlier Handling)", x = "TotalPrice", y = "Value")
+
+```
+
+```{r}
+# Detecting outliers using z-scores > 3 or < -3
+quantity_outliers <- data_file_clean %>% filter(abs(z_score_quantity) > 3)
+total_price_outliers <- data_file_clean %>% filter(abs(z_score_total_price) > 3)
+
+```
+```{r}
+# Display number of outliers detected
+print(paste("Number of Quantity outliers detected: ", nrow(quantity_outliers)))
+print(paste("Number of TotalPrice outliers detected: ", nrow(total_price_outliers)))
+
+```
+```{r}
+#Capping outliers at the 95th percentile
+
+# Capping for Quantity
+quantity_cap <- quantile(data_file_clean$Quantity, 0.95)
+data_file_clean$Quantity_capped <- ifelse(data_file_clean$Quantity > quantity_cap, quantity_cap, data_file_clean$Quantity)
+
+# Capping for TotalPrice
+total_price_cap <- quantile(data_file_clean$TotalPrice, 0.95)
+data_file_clean$TotalPrice_capped <- ifelse(data_file_clean$TotalPrice > total_price_cap, total_price_cap, data_file_clean$TotalPrice)
+
+```
+```{r}
+# Boxplot for Quantity after outlier handling
+ggplot(data_file_clean, aes(x = factor(0), y = Quantity)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  labs(title = "Box Plot of Quantity After Outlier Handling", x = "Quantity", y = "Value")
+
+```
+```{r}
+# Boxplot for TotalPrice after outlier handling
+ggplot(data_file_clean, aes(x = factor(0), y = TotalPrice)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  labs(title = "Box Plot of TotalPrice After Outlier Handling", x = "TotalPrice", y = "Value")
+
+```
+
+
+
+```{r}
+# Rechecking the structure and summary of the cleaned dataset
+summary(data_file_clean)
+```
+```{r}
+# Final output after handling outliers
+write.csv(data_file_clean, "cleaned_online_retail.csv", row.names = FALSE)
+```
+
+
+### making the data fit for data visualization ###
+
