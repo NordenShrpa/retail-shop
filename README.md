@@ -2,7 +2,9 @@
 
 This project focuses on analyzing and visualizing online retail shop data using **R** to derive actionable insights. The application provides interactive dashboards and advanced visualizations, enabling better decision-making for stakeholders.
 
-## Key Features
+To effectively use the project unzip the dataset folder and keep all the files in same folder.
+
+## Key Features.
 
 - **Interactive Dashboards**:  
   Built using **Shiny**, allowing users to explore data dynamically and intuitively.
